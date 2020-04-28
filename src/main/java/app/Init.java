@@ -2,60 +2,112 @@ package app;
 
 import app.forum.Forum;
 import app.forum.ForumRepository;
+import app.post.Post;
+import app.post.PostRepository;
 import app.user.DelphiUser;
 import app.user.DelphiUserRepository;
 import com.github.javafaker.Faker;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.Random;
 
-@RequiredArgsConstructor
 @Service
+@Log4j2
 public class Init implements ApplicationListener<ContextRefreshedEvent> {
   private final DelphiUserRepository delphiUserRepository;
   private final ForumRepository forumRepository;
+  private final PostRepository postRepository;
+  private final Faker faker = new Faker();
+  private final Date from, to;
+  private final List<DelphiUser> users = new ArrayList<>();
+  private final Random random = new Random();
   boolean alreadySetup;
 
+  public Init(DelphiUserRepository delphiUserRepository, ForumRepository forumRepository, PostRepository postRepository) {
+    this.delphiUserRepository = delphiUserRepository;
+    this.forumRepository = forumRepository;
+    this.postRepository = postRepository;
+    Calendar cal = Calendar.getInstance();
+    to = cal.getTime();
+    cal.add(Calendar.MONTH, -6);
+    from = cal.getTime();
+  }
+
   @Override
-//  @Transactional(noRollbackFor = {DataIntegrityViolationException.class, DataIntegrityViolationException.class})
   public void onApplicationEvent(ContextRefreshedEvent event) {
-    Faker faker = new Faker();
     if (alreadySetup) return;
-    var user1 = new DelphiUser("user1@example.com", "user1");
-    var user2 = new DelphiUser("user2@example.com", "user2");
+    try {
+      setup();
+    } finally {
+      alreadySetup = true;
+    }
+  }
+
+  private void setup() {
+    for (int i = 1; i <= 5; i++) {
+      var user = "user" + i;
+      users.add(new DelphiUser(String.format("%s@example.com", user), user));
+    }
     var root = new DelphiUser("root@example.com", "root");
-    var users = List.of(user1, user2, root);
-    delphiUserRepository.saveAll(users).forEach(System.out::println);
+    delphiUserRepository.saveAndFlush(root);
+    delphiUserRepository.saveAll(users);
     alreadySetup = true;
 
-    Calendar cal = Calendar.getInstance();
-    Date to = cal.getTime();
-    cal.add(Calendar.MONTH, -6);
-    Date from = cal.getTime();
     for (int i = 0; i < 30; i++) {
       String name = faker.beer().name();
       String description = faker.lorem().sentence(5);
 
-      Date d = faker.date().between(from, to);
-      var ldt = LocalDateTime.ofInstant(d.toInstant(), ZoneId.systemDefault());
-      var user = i % 2 == 0 ? user1 : user2;
-      var forum = new Forum(name, description, user);
-      forum.setCreatedOn(ldt);
-      forum.setUpdatedOn(ldt);
+      var founder = randomUser();
+      var forum = new Forum(name, description, founder);
+      var forumDate = randomDateAfter(from);
+      var forumLdt = date2ldt(forumDate);
+      forum.setCreatedOn(forumLdt);
+      forum.setUpdatedOn(forumLdt);
       if (forumRepository.existsByName(name)) {
         name = String.format("%s_%s", name, i);
         forum.setName(name);
       }
-      System.out.printf("save 1 %s%n", forum);
       forumRepository.saveAndFlush(forum);
-      System.out.println(forum);
+      log.trace(forum);
+      for (int j = 0; j < 20; j++) {
+        var title = faker.book().title();
+        var body = faker.chuckNorris().fact();
+        var postDate = randomDateAfter(forumDate);
+        var postLdt = date2ldt(postDate);
+        var author = randomUser();
+        var post = new Post(title, body, author, forum);
+        post.setCreatedOn(postLdt);
+        post.setUpdatedOn(postLdt);
+        log.info("{}, {}", forum, post);
+        if (postRepository.existsByTitleAndForum(title, forum)) {
+          log.info("{} exists in {}", post, forum);
+        } else {
+          postRepository.saveAndFlush(post);
+          log.info("saved {}", post);
+        }
+      }
     }
+
+  }
+
+  private Date randomDateAfter(Date min) {
+    return faker.date().between(min, to);
+  }
+
+  private LocalDateTime date2ldt(Date d) {
+    return LocalDateTime.ofInstant(d.toInstant(), ZoneId.systemDefault());
+  }
+
+  private DelphiUser randomUser() {
+    return users.get(random.nextInt(users.size()));
   }
 }

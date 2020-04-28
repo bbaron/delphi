@@ -4,6 +4,7 @@ import app.user.DelphiUser;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -20,6 +21,7 @@ import static javax.persistence.FetchType.LAZY;
 @Data
 @EqualsAndHashCode(of = "name")
 @NoArgsConstructor
+@ToString(of = {"id", "name"})
 public class Forum {
   @Id
   @GeneratedValue
