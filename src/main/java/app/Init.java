@@ -57,7 +57,7 @@ public class Init implements ApplicationListener<ContextRefreshedEvent> {
       var user = "user" + i;
       users.add(new DelphiUser(String.format("%s@example.com", user), user));
     }
-    var root = new DelphiUser("root@example.com", "root");
+    var root = DelphiUser.administrator("root@example.com", "root");
     delphiUserRepository.saveAndFlush(root);
     delphiUserRepository.saveAll(users);
     alreadySetup = true;

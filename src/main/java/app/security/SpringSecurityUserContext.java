@@ -11,10 +11,8 @@ import java.util.Optional;
 public class SpringSecurityUserContext implements UserContext {
   @Override
   public Optional<DelphiUser> getCurrentUser() {
-    var auth = Securities.authentication();
-    if (auth == null) return Optional.empty();
-    var user = (DelphiUser) auth.getPrincipal();
-    return Optional.of(user);
+    return Securities.authentication()
+        .map(auth -> (DelphiUser) auth.getPrincipal());
   }
 
   @Override

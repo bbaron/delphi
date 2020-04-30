@@ -12,9 +12,8 @@ import java.util.Optional;
 public class DelphiUserService {
   private final DelphiUserRepository delphiUserRepository;
 
-  public Optional<UserRoles> loadUserAndRoles(String email) {
-    return delphiUserRepository.findByEmail(email)
-        .map(UserRoles::of);
+  public Optional<DelphiUser> loadUserAndRoles(String email) {
+    return delphiUserRepository.findByEmail(email);
   }
 
 }
